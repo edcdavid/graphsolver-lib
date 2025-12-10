@@ -291,9 +291,6 @@ func SameLan3Wrapper(config export.L2Info, if1, if2, if3 int) bool {
 
 // Checks if 2 interfaces are connected to the same LAN
 func SameLan2(config export.L2Info, if1, if2 int, lans *[][]int) bool {
-	if SameNode(config.GetPtpIfList()[if1], config.GetPtpIfList()[if2]) {
-		return false
-	}
 	for _, Lan := range *lans {
 		if1Present := false
 		if2Present := false
