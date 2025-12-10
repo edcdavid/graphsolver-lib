@@ -1,9 +1,11 @@
 package lib
 
 import (
+	"strings"
+
+	export "github.com/redhat-cne/graphsolver-exports"
+	l2lib "github.com/redhat-cne/l2discovery-exports"
 	"github.com/sirupsen/logrus"
-	export "github.com/test-network-function/graphsolver-exports"
-	l2lib "github.com/test-network-function/l2discovery-exports"
 )
 
 var GlobalConfig = configObject{}
@@ -47,8 +49,8 @@ func (config *configObject) Run(problemName string) {
 	PermutationsWithConstraints(config.l2Config, GlobalConfig.problems[problemName], L, 0, len(GlobalConfig.problems[problemName]), len(L), true, GlobalConfig.solutions[problemName])
 }
 
-// Prints the selected solution for each scenario, if found
-func (config configObject) PrintAllSolutions() {
+// Prints the all solutions for each scenario, if found
+func (config configObject) PrintSolutions(all bool) {
 	for index, solutions := range config.solutions {
 		if len(*solutions) == 0 {
 			logrus.Infof("Solution for %s problem does not exists", index)
@@ -58,6 +60,9 @@ func (config configObject) PrintAllSolutions() {
 		for _, solution := range *solutions {
 			PrintSolution(config.l2Config, solution)
 			logrus.Infof("---")
+			if !all {
+				break
+			}
 		}
 	}
 }
@@ -73,6 +78,11 @@ func (config configObject) PrintFirstSolution() {
 		PrintSolution(config.l2Config, (*solutions)[0])
 		logrus.Infof("---")
 	}
+}
+
+// Prints the all solutions for each scenario, if found
+func (config configObject) PrintAllSolutions() {
+	config.PrintSolutions(true)
 }
 
 // list of Algorithm functions with zero params
@@ -138,6 +148,8 @@ func Step3(fn AlgoFunction3, param1, param2, param3 int, negate int) []int {
 	return []int{int(fn), 3, param1, param2, param3, negate}
 }
 
+const WPCNICSubsystemID = "E810-XXV-4T"
+
 // list of Algorithm function with 3 params
 type AlgoFunction3 int
 
@@ -192,7 +204,7 @@ func PermutationsWithConstraints(config export.L2Info, algo [][][]int, l []int, 
 		temp := make([]int, 0)
 		temp = append(temp, l...)
 		temp = temp[0:e]
-		logrus.Debugf("%v --  %v", temp, result)
+		logrus.Tracef("Permutations %v --  %v", temp, result)
 		*solutions = append(*solutions, temp)
 	} else {
 		// Backtracking loop
@@ -318,6 +330,16 @@ func SameNicWrapper(config export.L2Info, if1, if2 int) bool {
 	return SameNic(config.GetPtpIfList()[if1], config.GetPtpIfList()[if2])
 }
 
+// Determines if the NIC is intel WPC NIC
+func isWpcNic(ifaceName1 *l2lib.PtpIf) bool {
+	return strings.Contains(ifaceName1.IfPci.Subsystem, WPCNICSubsystemID)
+}
+
+// wrapper for isWpcNic
+func isWPCNicWrapper(config export.L2Info, if1 int) bool {
+	return isWpcNic(config.GetPtpIfList()[if1])
+}
+
 // wrapper for nil algo function
 func NilWrapper() bool {
 	return true
@@ -355,7 +377,6 @@ func applyStep(config export.L2Info, step [][]int, combinations []int) bool {
 
 	var AlgoCode3 [1]ConfigFunc3
 	AlgoCode3[StepSameLan3] = SameLan3Wrapper
-
 	result := true
 	for _, test := range step {
 		var stepResult bool
